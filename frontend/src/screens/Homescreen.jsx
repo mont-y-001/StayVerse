@@ -5,12 +5,15 @@ import Rooms from '../components/Rooms';
 import Loader from '../components/Loader';
 import Error from '../components/Error';
 import { roomsApi } from '../api/client';
+import { useSearchParams, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const { RangePicker } = DatePicker;
 
 const ITEMS_PER_PAGE = 8;
 
 const Homescreen = React.memo(function Homescreen() {
+  const { user, loading: authLoading } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [filteredRooms, setFilteredRooms] = useState([]);
   const [error, setError] = useState(null);
@@ -19,20 +22,18 @@ const Homescreen = React.memo(function Homescreen() {
   const [todate, settodate] = useState(null);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const cacheRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const selectedType = searchParams.get('type') || 'All Rooms';
+
+  if (!authLoading && user && user.role === 'owner') {
+    return <Navigate to="/owner/dashboard" replace />;
+  }
 
   useEffect(() => {
     const fetchRooms = async () => {
-      // Use cached data if available
-      if (cacheRef.current) {
-        setRooms(cacheRef.current);
-        setFilteredRooms(cacheRef.current);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
-        const data = await roomsApi.list();
+        const data = await roomsApi.list(selectedType);
         cacheRef.current = data;
         setRooms(data);
         setFilteredRooms(data);
@@ -45,7 +46,7 @@ const Homescreen = React.memo(function Homescreen() {
     };
 
     fetchRooms();
-  }, []);
+  }, [selectedType]);
 
   const filterByDate = useCallback((dates) => {
     if (dates && dates.length === 2) {

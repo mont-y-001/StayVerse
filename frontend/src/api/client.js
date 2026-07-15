@@ -49,7 +49,8 @@ export const authApi = {
 };
 
 export const roomsApi = {
-  list: () => request('/rooms'),
+  list: (type) => request(`/rooms${type && type !== 'All Rooms' ? `?type=${encodeURIComponent(type)}` : ''}`),
+  listMine: () => request('/rooms/mine'),
   get: (id) => request(`/rooms/${id}`),
   create: (payload) => request('/rooms', { method: 'POST', body: JSON.stringify(payload) }),
   update: (id, payload) => request(`/rooms/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
@@ -58,6 +59,7 @@ export const roomsApi = {
 
 export const bookingsApi = {
   listMine: () => request('/bookings/my'),
+  listForOwner: () => request('/bookings/owner'),
   listAll: () => request('/bookings'),
   create: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
   cancel: (id) => request(`/bookings/${id}/cancel`, { method: 'PATCH' }),
@@ -69,4 +71,19 @@ export const propertyRequestsApi = {
   create: (payload) => request('/property-requests', { method: 'POST', body: JSON.stringify(payload) }),
   approve: (id) => request(`/property-requests/${id}/approve`, { method: 'PATCH' }),
   reject: (id) => request(`/property-requests/${id}/reject`, { method: 'PATCH' }),
+};
+
+export const uploadApi = {
+  images: async (files) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+    const response = await fetch(`${API_BASE_URL}/uploads`, {
+      method: 'POST',
+      headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.message || 'Image upload failed.');
+    return data.imageurls;
+  },
 };

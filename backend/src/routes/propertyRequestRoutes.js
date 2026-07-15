@@ -42,6 +42,7 @@ router.patch('/:id/approve', protect, adminOnly, async (req, res, next) => {
     if (!request) return res.status(404).json({ message: 'Property request not found.' });
 
     await Room.create({
+      owner_id: request.user_id,
       name: request.name,
       type: request.type,
       description: request.description,

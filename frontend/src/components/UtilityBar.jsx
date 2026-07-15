@@ -7,7 +7,7 @@ export default function UtilityBar() {
 
   return (
     <>
-      <div className="utility-bar py-2 text-white">
+      <div className="utility-bar py-2 text-white position-relative" style={{ zIndex: 1030 }}>
         <div className="container d-flex justify-content-between align-items-center">
           <div className="d-flex align-items-center">
             <a href="tel:+1800STAYVERSE" className="me-4 small d-none d-md-inline text-white text-decoration-none">

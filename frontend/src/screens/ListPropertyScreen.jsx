@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { propertyRequestsApi } from '../api/client';
+import { roomsApi, uploadApi } from '../api/client';
 import Loader from '../components/Loader';
 import Error from '../components/Error';
 
@@ -15,7 +15,7 @@ const initialForm = {
   maxcount: '',
   rentperday: '',
   phonenumber: '',
-  imageurls: [''],
+  imageurls: [],
 };
 
 export default function ListPropertyScreen() {
@@ -28,6 +28,8 @@ export default function ListPropertyScreen() {
   const [success, setSuccess] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [editingProperty, setEditingProperty] = useState(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -35,16 +37,20 @@ export default function ListPropertyScreen() {
       navigate('/login');
       return;
     }
+    if (user.role !== 'owner' && user.role !== 'admin' && !user.is_admin) {
+      navigate('/home');
+      return;
+    }
 
     let cancelled = false;
 
     const fetchRequests = async () => {
       try {
-        const data = await propertyRequestsApi.listMine();
+        const data = await roomsApi.listMine();
         if (!cancelled) setRequests(data || []);
       } catch (err) {
-        console.error('Failed to load property requests:', err);
-        if (!cancelled) setError(err.message || 'Failed to load property submissions.');
+        console.error('Failed to load properties:', err);
+        if (!cancelled) setError(err.message || 'Failed to load your properties.');
       } finally {
         if (!cancelled) setLoadingRequests(false);
       }
@@ -58,40 +64,28 @@ export default function ListPropertyScreen() {
     setForm(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const updateImageUrl = useCallback((index, value) => {
-    setForm(prev => {
-      const urls = [...prev.imageurls];
-      urls[index] = value;
-      return { ...prev, imageurls: urls };
-    });
-  }, []);
-
-  const addImageField = useCallback(() => {
-    setForm(prev => ({ ...prev, imageurls: [...prev.imageurls, ''] }));
-  }, []);
-
-  const removeImageField = useCallback((index) => {
-    setForm(prev => ({
-      ...prev,
-      imageurls: prev.imageurls.filter((_, i) => i !== index),
-    }));
+  const selectImages = useCallback((files) => {
+    const validFiles = Array.from(files || []).filter((file) => file.type.startsWith('image/'));
+    setSelectedImages(validFiles.slice(0, 6));
   }, []);
 
   const canProceed = useCallback(() => {
     if (step === 0) return form.name.trim() && form.description.trim().length >= 20;
     if (step === 1) return form.maxcount > 0 && form.rentperday > 0 && form.phonenumber.trim();
-    if (step === 2) return form.imageurls.some(url => url.trim());
+    if (step === 2) return selectedImages.length > 0 || form.imageurls.length > 0;
     return true;
-  }, [step, form]);
+  }, [step, form, selectedImages.length]);
 
   const handleSubmit = async () => {
     setError(null);
     setSubmitting(true);
 
     try {
-      const imageurls = form.imageurls.filter(url => url.trim());
+      const imageurls = selectedImages.length > 0
+        ? await uploadApi.images(selectedImages)
+        : form.imageurls;
 
-      const data = await propertyRequestsApi.create({
+      const payload = {
         name: form.name.trim(),
         type: form.type,
         description: form.description.trim(),
@@ -99,11 +93,18 @@ export default function ListPropertyScreen() {
         rentperday: parseFloat(form.rentperday),
         phonenumber: form.phonenumber.trim(),
         imageurls,
-      });
+      };
+      const data = editingProperty
+        ? await roomsApi.update(editingProperty.id, payload)
+        : await roomsApi.create(payload);
 
-      setRequests(prev => [data, ...prev]);
-      setSuccess(true);
+      setRequests(prev => editingProperty
+        ? prev.map((property) => property.id === data.id ? data : property)
+        : [data, ...prev]);
+      setSuccess(editingProperty ? 'Property updated successfully.' : 'Your property is live and can now be booked by guests.');
       setForm(initialForm);
+      setSelectedImages([]);
+      setEditingProperty(null);
       setStep(0);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
@@ -112,6 +113,38 @@ export default function ListPropertyScreen() {
       setSubmitting(false);
     }
   };
+
+  const startEdit = useCallback((property) => {
+    setEditingProperty(property);
+    setForm({
+      name: property.name,
+      type: property.type,
+      description: property.description,
+      maxcount: String(property.maxcount),
+      rentperday: String(property.rentperday),
+      phonenumber: property.phonenumber,
+      imageurls: property.imageurls || [],
+    });
+    setSelectedImages([]);
+    setStep(0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const deleteProperty = useCallback(async (property) => {
+    if (!window.confirm(`Delete “${property.name}”? This cannot be undone.`)) return;
+    try {
+      await roomsApi.remove(property.id);
+      setRequests((properties) => properties.filter((item) => item.id !== property.id));
+      if (editingProperty?.id === property.id) {
+        setEditingProperty(null);
+        setForm(initialForm);
+        setSelectedImages([]);
+        setStep(0);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete property.');
+    }
+  }, [editingProperty]);
 
   if (authLoading) return <Loader />;
 
@@ -125,7 +158,7 @@ export default function ListPropertyScreen() {
             List Your <span className="accent">Property</span>
           </h1>
           <p className="lead">
-            Share your space with travelers worldwide. Submit your listing and our team will review it within 48 hours.
+            Add your stay to StayVerse and make it available to guests immediately.
           </p>
         </div>
       </section>
@@ -135,7 +168,7 @@ export default function ListPropertyScreen() {
           {success && (
             <div className="alert alert-success fade-in-up">
               <i className="fa fa-check-circle me-2"></i>
-              Your property has been submitted! We'll notify you once it's approved.
+              {success}
             </div>
           )}
           {error && <Error message={error} />}
@@ -156,7 +189,7 @@ export default function ListPropertyScreen() {
 
             {step === 0 && (
               <div className="fade-in-up">
-                <h4 className="mb-3"><i className="fa fa-home me-2"></i> Basic Information</h4>
+            <h4 className="mb-3"><i className="fa fa-home me-2"></i> {editingProperty ? 'Edit Property' : 'Basic Information'}</h4>
                 <div className="mb-3">
                   <label className="form-label fw-semibold">Property Name</label>
                   <input
@@ -234,36 +267,25 @@ export default function ListPropertyScreen() {
             {step === 2 && (
               <div className="fade-in-up">
                 <h4 className="mb-3"><i className="fa fa-image me-2"></i> Property Photos</h4>
-                <p className="text-muted small mb-3">Add image URLs for your property. At least one is required.</p>
-                {form.imageurls.map((url, idx) => (
-                  <div className="d-flex gap-2 mb-2" key={idx}>
-                    <input
-                      type="url"
-                      className="form-control"
-                      placeholder="https://example.com/photo.jpg"
-                      value={url}
-                      onChange={(e) => updateImageUrl(idx, e.target.value)}
-                    />
-                    {form.imageurls.length > 1 && (
-                      <button className="btn btn-outline-danger" onClick={() => removeImageField(idx)}>
-                        <i className="fa fa-times"></i>
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button className="btn btn-outline-dark btn-sm mt-2" onClick={addImageField}>
-                  <i className="fa fa-plus me-1"></i> Add Another Photo
-                </button>
-                {form.imageurls.some(u => u.trim()) && (
+                <p className="text-muted small mb-3">Choose up to six photos from your device. Your system picker can also select files from a synced Google Drive folder.</p>
+                {editingProperty && form.imageurls.length > 0 && selectedImages.length === 0 && (
+                  <p className="small text-success">Your current images will be kept unless you select replacement photos.</p>
+                )}
+                <label className="border rounded-3 p-4 w-100 text-center bg-light" style={{ cursor: 'pointer', borderStyle: 'dashed' }}>
+                  <i className="fa fa-cloud-upload fa-2x d-block mb-2"></i>
+                  <strong>Choose photos from device or Drive</strong>
+                  <span className="d-block small text-muted mt-1">JPG, PNG, WEBP or GIF · maximum 5 MB each</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="d-none" onChange={(e) => selectImages(e.target.files)} />
+                </label>
+                {(selectedImages.length > 0 || form.imageurls.length > 0) && (
                   <div className="mt-3 d-flex gap-2 flex-wrap">
-                    {form.imageurls.filter(u => u.trim()).map((url, idx) => (
+                    {(selectedImages.length > 0 ? selectedImages : form.imageurls).map((file, idx) => (
                       <img
                         key={idx}
-                        src={url}
-                        alt={`Preview ${idx + 1}`}
+                        src={selectedImages.length > 0 ? URL.createObjectURL(file) : file}
+                        alt={selectedImages.length > 0 ? file.name : `Property ${idx + 1}`}
                         className="rounded"
                         style={{ width: 80, height: 60, objectFit: 'cover' }}
-                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ))}
                   </div>
@@ -287,9 +309,9 @@ export default function ListPropertyScreen() {
                       </p>
                     </div>
                     <div className="col-md-4">
-                      {form.imageurls.filter(u => u.trim())[0] && (
+                      {(selectedImages[0] || form.imageurls[0]) && (
                         <img
-                          src={form.imageurls.filter(u => u.trim())[0]}
+                          src={selectedImages[0] ? URL.createObjectURL(selectedImages[0]) : form.imageurls[0]}
                           alt="Preview"
                           className="w-100 rounded"
                           style={{ height: 120, objectFit: 'cover' }}
@@ -326,7 +348,7 @@ export default function ListPropertyScreen() {
                   {submitting ? (
                     <><i className="fa fa-spinner fa-spin me-1"></i> Submitting...</>
                   ) : (
-                    <><i className="fa fa-paper-plane me-1"></i> Submit Listing</>
+                    <><i className={`fa ${editingProperty ? 'fa-floppy-o' : 'fa-paper-plane'} me-1`}></i> {editingProperty ? 'Update Property' : 'Publish Property'}</>
                   )}
                 </button>
               )}
@@ -334,15 +356,15 @@ export default function ListPropertyScreen() {
           </div>
 
           <div className="mt-5">
-            <h4 className="section-title"><i className="fa fa-list me-2"></i> Your Submissions</h4>
-            <p className="section-subtitle">Track the status of your property listings</p>
+            <h4 className="section-title"><i className="fa fa-list me-2"></i> Your Properties</h4>
+            <p className="section-subtitle">Properties published under your owner account</p>
 
             {loadingRequests ? (
               <Loader />
             ) : requests.length === 0 ? (
               <div className="empty-state glass-card-static">
                 <i className="fa fa-building-o"></i>
-                <h5 className="text-muted">No submissions yet</h5>
+                <h5 className="text-muted">No properties yet</h5>
                 <p className="text-muted">Complete the form above to list your first property.</p>
               </div>
             ) : (
@@ -353,17 +375,23 @@ export default function ListPropertyScreen() {
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <h6 className="mb-0">{req.name}</h6>
                         <span className={`badge-status ${
-                          req.status === 'approved' ? 'bg-success text-white' :
-                          req.status === 'rejected' ? 'bg-danger text-white' :
-                          'bg-warning text-dark'
+                          'bg-success text-white'
                         }`}>
-                          {req.status}
+                          Live
                         </span>
                       </div>
                       <p className="text-muted small mb-1">{req.type} · ₹{req.rentperday}/day</p>
                       <p className="text-muted small mb-0">
-                        Submitted {new Date(req.created_at).toLocaleDateString()}
+                        Published {new Date(req.created_at).toLocaleDateString()}
                       </p>
+                      <div className="d-flex gap-2 mt-3">
+                        <button className="btn btn-outline-dark btn-sm" onClick={() => startEdit(req)}>
+                          <i className="fa fa-pencil me-1"></i> Edit
+                        </button>
+                        <button className="btn btn-outline-danger btn-sm" onClick={() => deleteProperty(req)}>
+                          <i className="fa fa-trash me-1"></i> Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

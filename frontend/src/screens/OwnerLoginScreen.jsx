@@ -24,8 +24,11 @@ export default function OwnerLoginScreen() {
         password,
       })
 
+      if (session.user.role !== 'owner' && session.user.role !== 'admin' && !session.user.is_admin) {
+        throw new Error('This account is not registered as a property owner.')
+      }
       setAuthUser(session)
-      navigate('/list-property')
+      navigate('/owner/dashboard')
     } catch (err) {
       setError(err.message || 'Owner login failed.')
     } finally {

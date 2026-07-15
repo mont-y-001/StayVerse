@@ -54,7 +54,7 @@ export default function AdminDashboardScreen() {
       navigate('/login');
       return;
     }
-    if (!user.is_admin) {
+    if (user.role !== 'admin' && !user.is_admin) {
       navigate('/home');
       return;
     }

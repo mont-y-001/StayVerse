@@ -10,6 +10,7 @@ function Registerscreen() {
   const [email, setemail] = useState('');
   const [password, setpassword] = useState('');
   const [cpassword, setcpassword] = useState('');
+  const [role, setRole] = useState('user');
 
   const [loading, setloading] = useState(false);
   const [error, seterror] = useState(null);
@@ -31,6 +32,7 @@ function Registerscreen() {
         name,
         email,
         password,
+        role,
       });
 
       setsuccess("Registration successful! Redirecting to login...");
@@ -73,6 +75,13 @@ function Registerscreen() {
                 <div className="mb-3">
                   <input type="email" className="form-control" placeholder="Email"
                     value={email} onChange={(e) => setemail(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-semibold">I want to</label>
+                  <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
+                    <option value="user">Book stays as a guest</option>
+                    <option value="owner">List and manage properties as an owner</option>
+                  </select>
                 </div>
                 <div className="mb-3">
                   <input type="password" className="form-control" placeholder="Password"

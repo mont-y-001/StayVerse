@@ -25,11 +25,25 @@ async function protect(req, res, next) {
 }
 
 function adminOnly(req, res, next) {
-  if (!req.user?.is_admin) {
+  if (req.user?.role !== 'admin' && !req.user?.is_admin) {
     return res.status(403).json({ message: 'Admin access required.' });
   }
 
   next();
 }
 
-module.exports = { protect, adminOnly };
+function ownerOnly(req, res, next) {
+  if (req.user?.role !== 'owner' && req.user?.role !== 'admin' && !req.user?.is_admin) {
+    return res.status(403).json({ message: 'Owner access required.' });
+  }
+  next();
+}
+
+function userOnly(req, res, next) {
+  if ((req.user?.role || 'user') !== 'user') {
+    return res.status(403).json({ message: 'Only guest accounts can create bookings.' });
+  }
+  next();
+}
+
+module.exports = { protect, adminOnly, ownerOnly, userOnly };

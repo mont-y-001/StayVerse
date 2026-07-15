@@ -26,7 +26,7 @@ function Loginscreen() {
 
       setAuthUser(session);
 
-      navigate('/home');
+      navigate('/user/dashboard');
 
     } catch (err) {
       seterror(err.message);

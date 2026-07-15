@@ -17,6 +17,8 @@ const OwnerLoginScreen = lazy(() => import('./screens/OwnerLoginScreen'));
 const BookingsScreen = lazy(() => import('./screens/BookingsScreen'));
 const ListPropertyScreen = lazy(() => import('./screens/ListPropertyScreen'));
 const AdminDashboardScreen = lazy(() => import('./screens/AdminDashboardScreen'));
+const OwnerDashboardScreen = lazy(() => import('./screens/OwnerDashboardScreen'));
+const UserDashboardScreen = lazy(() => import('./screens/UserDashboardScreen'));
 
 function Layout() {
   const location = useLocation();
@@ -39,6 +41,8 @@ function Layout() {
           <Route path="/bookings" element={<BookingsScreen />} />
           <Route path="/list-property" element={<ListPropertyScreen />} />
           <Route path="/admin" element={<AdminDashboardScreen />} />
+          <Route path="/owner/dashboard" element={<OwnerDashboardScreen />} />
+          <Route path="/user/dashboard" element={<UserDashboardScreen />} />
           <Route path="*" element={
             <div className="page-screen">
               <div className="container py-5 text-center">

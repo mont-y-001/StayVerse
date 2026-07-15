@@ -14,7 +14,7 @@ function authPayload(user) {
 
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role = 'user' } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required.' });
@@ -25,8 +25,15 @@ router.post('/register', async (req, res, next) => {
       return res.status(409).json({ message: 'Email is already registered.' });
     }
 
+    if (!['user', 'owner'].includes(role)) {
+      return res.status(400).json({ message: 'Role must be user or owner.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+    }
+
     const passwordHash = await User.hashPassword(password);
-    const user = await User.create({ name, email, passwordHash });
+    const user = await User.create({ name, email, passwordHash, role });
 
     res.status(201).json(authPayload(user));
   } catch (error) {
