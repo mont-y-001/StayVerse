@@ -1,20 +1,20 @@
-# SheyRooms – A Room Booking Web App
+# StayVerse – All Stays in One Universe
 
-A full-stack **room booking web application** built with **MERN stack** (MongoDB, Express.js, React.js, Node.js) with secure authentication and payment gateway integration.
+A full-stack **room booking web application** built with **React + Supabase**, offering a seamless experience for browsing, booking, and managing hotel rooms, villas, and premium stays.
 
 ## Features
-- User authentication and **JWT-based authorization**  
+- User authentication via **Supabase Auth**  
 - Browse, book, and manage hotel rooms  
-- **Payment gateway integration** for secure online payments  
-- Admin panel for managing rooms, bookings, and users  
-- Responsive design for **desktop and mobile devices**  
+- **Secure payment modal** for online bookings  
+- Owner login panel for managing properties  
+- **Lazy-loaded images** + code-splitting for fast performance  
+- Responsive design for **desktop and mobile devices**
 
 ## Technologies Used
-- **Frontend:** React.js, Tailwind CSS, Bootstrap, HTML, CSS  
-- **Backend:** Node.js, Express.js  
-- **Database:** MongoDB  
-- **Authentication:** JWT  
-- **Deployment:** Vercel (Frontend), [Your Backend Host]  
+- **Frontend:** React 19, Ant Design, React Bootstrap, React Router v7  
+- **Backend:** Supabase (PostgreSQL, Auth, RLS)  
+- **Database:** PostgreSQL (via Supabase)  
+- **Deployment:** Vercel  
 
 ## Installation
 1. Clone the repository:
